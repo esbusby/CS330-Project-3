@@ -1,0 +1,74 @@
+﻿@model IEnumerable<Fall2025_Project3_esbusby.Models.Actor>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+@functions {
+    public string GetImageSrc(byte[]? imageData)
+    {
+        if (imageData == null || imageData.Length == 0)
+        {
+            return "https://via.placeholder.com/100x150?text=No+Image";
+        }
+
+        var base64 = Convert.ToBase64String(imageData);
+        return $"data:image/jpeg;base64,{base64}";
+    }
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table table-striped" data-table>
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Name)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Gender)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Age)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ImdbLink)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Photo)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Gender)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Age)
+            </td>
+            <td>
+                <a href="@item.ImdbLink" target="_blank">IMDB</a>
+            </td>
+            <td>
+                <img src="@GetImageSrc(item.Photo)"
+                     alt="Photo"
+                     style="max-width: 100px; max-height: 150px;" />
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
