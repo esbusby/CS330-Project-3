@@ -7,16 +7,30 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Fall2025_Project3_esbusby.Data;
 using Fall2025_Project3_esbusby.Models;
+using Azure.AI.OpenAI;
+using OpenAI.Chat;
+using System.ClientModel;
+using VaderSharp2;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Schema;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Fall2025_Project3_esbusby.Controllers
 {
+    public record Tweet(string Username, string Text);
+    public record Tweets(Tweet[] Items);
+
     public class ActorsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public ActorsController(ApplicationDbContext context)
+        public ActorsController(ApplicationDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         // GET: Actors
@@ -43,6 +57,52 @@ namespace Fall2025_Project3_esbusby.Controllers
                 return NotFound();
             }
 
+            var apiEndpoint = new Uri(_configuration["ai_endpoint"]!);
+            var apiCredential = new ApiKeyCredential(_configuration["api_key"]!);
+            var aiDeployment = _configuration["ai_deployment_name"]!;
+
+            ChatClient client = new AzureOpenAIClient(apiEndpoint, apiCredential).GetChatClient(aiDeployment);
+
+            var options = new JsonSerializerOptions(JsonSerializerDefaults.General)
+            {
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+                TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+            };
+            JsonNode schema = options.GetJsonSchemaAsNode(typeof(Tweets), new()
+            {
+                TreatNullObliviousAsNonNullable = true,
+            });
+
+            var chatCompletionOptions = new ChatCompletionOptions
+            {
+                ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat("XTwitterApiJson", BinaryData.FromString(schema.ToString()), jsonSchemaIsStrict: true),
+            };
+            var messages = new ChatMessage[]
+            {
+                new SystemChatMessage($"You represent the X/Twitter social media platform API that returns JSON data."),
+                new UserChatMessage($"Generate 5 tweets from a variety of users about the actor {actor.Name}.")
+            };
+            ClientResult<ChatCompletion> result = await client.CompleteChatAsync(messages, chatCompletionOptions);
+
+            string jsonString = result.Value.Content.FirstOrDefault()?.Text ?? @"{""Items"":[]}";
+            Tweets tweets = JsonSerializer.Deserialize<Tweets>(jsonString) ?? new Tweets(Array.Empty<Tweet>());
+
+            var analyzer = new SentimentIntensityAnalyzer();
+            double sentimentTotal = 0;
+            var tweetsList = new List<(string username, string text, SentimentAnalysisResults sentiment)>();
+
+            foreach (var tweet in tweets.Items)
+            {
+                SentimentAnalysisResults sentiment = analyzer.PolarityScores(tweet.Text);
+                sentimentTotal += sentiment.Compound;
+                tweetsList.Add((tweet.Username, tweet.Text, sentiment));
+            }
+
+            double sentimentAverage = tweets.Items.Length > 0 ? sentimentTotal / tweets.Items.Length : 0;
+
+            ViewBag.Tweets = tweetsList;
+            ViewBag.AverageSentiment = sentimentAverage;
+
             return View(actor);
         }
 
@@ -53,15 +113,21 @@ namespace Fall2025_Project3_esbusby.Controllers
         }
 
         // POST: Actors/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Name,Gender,Age,ImdbLink")] Actor actor, IFormFile? Photo)
         {
+            var existingActor = await _context.Actor
+                .FirstOrDefaultAsync(a => a.Name == actor.Name && a.Age == actor.Age);
+
+            if (existingActor != null)
+            {
+                ModelState.AddModelError("Name", "An actor with this name and age already exists.");
+                return View(actor);
+            }
+
             if (ModelState.IsValid)
             {
-                // Handle the photo upload
                 if (Photo != null && Photo.Length > 0)
                 {
                     using (var memoryStream = new MemoryStream())
@@ -94,8 +160,6 @@ namespace Fall2025_Project3_esbusby.Controllers
         }
 
         // POST: Actors/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Gender,Age,ImdbLink")] Actor actor, IFormFile? Photo)
@@ -105,14 +169,23 @@ namespace Fall2025_Project3_esbusby.Controllers
                 return NotFound();
             }
 
-            // Remove Photo from ModelState validation since we handle it separately
+            var existingActor = await _context.Actor
+                .FirstOrDefaultAsync(a => a.Name == actor.Name
+                    && a.Age == actor.Age
+                    && a.Id != actor.Id);
+
+            if (existingActor != null)
+            {
+                ModelState.AddModelError("Name", "An actor with this name and age already exists.");
+                return View(actor);
+            }
+
             ModelState.Remove("Photo");
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    // Handle the photo upload
                     if (Photo != null && Photo.Length > 0)
                     {
                         using (var memoryStream = new MemoryStream())
@@ -124,10 +197,10 @@ namespace Fall2025_Project3_esbusby.Controllers
                     else
                     {
                         // Keep existing photo if no new one is uploaded
-                        var existingActor = await _context.Actor.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id);
-                        if (existingActor != null)
+                        var actorForPhoto = await _context.Actor.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id);
+                        if (actorForPhoto != null)
                         {
-                            actor.Photo = existingActor.Photo;
+                            actor.Photo = actorForPhoto.Photo;
                         }
                     }
 

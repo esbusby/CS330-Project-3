@@ -1,9 +1,10 @@
 ﻿@model Fall2025_Project3_esbusby.Models.Movie
-
+@using VaderSharp2
 @{
     ViewData["Title"] = "Details";
+    var reviews = ViewBag.Reviews as List<(string review, SentimentAnalysisResults sentiment)>;
+    double avgSentiment = ViewBag.AverageSentiment ?? 0;
 }
-
 @functions {
     public string GetImageSrc(byte[]? imageData)
     {
@@ -11,14 +12,11 @@
         {
             return "https://via.placeholder.com/300x450?text=No+Image";
         }
-
         var base64 = Convert.ToBase64String(imageData);
         return $"data:image/jpeg;base64,{base64}";
     }
 }
-
 <h1>Details</h1>
-
 <div>
     <h4>Movie</h4>
     <hr />
@@ -57,9 +55,7 @@
         </dd>
     </dl>
 </div>
-
 <hr />
-
 <h4>Actors in this Movie</h4>
 @if (Model.ActorMovies != null && Model.ActorMovies.Any())
 {
@@ -78,6 +74,36 @@ else
 {
     <p>No actors have been added to this movie yet.</p>
 }
+
+<hr />
+
+<h3>Sentiment Average: @avgSentiment.ToString("#.###")</h3>
+
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th style="width: 60%;">AI Generated Reviews</th>
+            <th style="width: 40%;">Sentiment Analysis</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (reviews != null && reviews.Any())
+        {
+            for (int i = 0; i < reviews.Count; i++)
+            {
+                <tr>
+                    <td>@reviews[i].review</td>
+                    <td>
+                        <strong>Sentiment:</strong> @reviews[i].sentiment.Compound<br />
+                        <strong>Positive:</strong> @reviews[i].sentiment.Positive<br />
+                        <strong>Negative:</strong> @reviews[i].sentiment.Negative<br />
+                        <strong>Neutral:</strong> @reviews[i].sentiment.Neutral
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
 
 <div>
     <a asp-action="Edit" asp-route-id="@Model.Id">Edit</a> |

@@ -1,5 +1,9 @@
 html {
-  font-size: 14px;
+    font-size: 14px;
+    position: relative;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 @media (min-width: 768px) {
@@ -12,13 +16,39 @@ html {
   box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
-html {
-  position: relative;
-  min-height: 100%;
+body {
+    background: #0a0e27;
+    color: #e8f4f8;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    min-height: 100vh;
 }
 
-body {
-  margin-bottom: 60px;
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(circle, white 1px, transparent 1px), radial-gradient(circle, white 1px, transparent 1px), radial-gradient(circle, white 2px, transparent 2px);
+        background-size: 200px 200px, 300px 300px, 400px 400px;
+        background-position: 0 0, 50px 60px, 130px 270px;
+        opacity: 0.6;
+        z-index: -1;
+        pointer-events: none;
+        animation: stars 120s linear infinite;
+    }
+
+@keyframes stars {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-50%);
+    }
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -28,4 +58,200 @@ body {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
+}
+
+footer {
+    display: none;
+}
+
+/*Home Page Styling*/
+.interstellar-home {
+    padding: 4rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.content-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+}
+
+.interstellar-home h1 {
+    color: #e8f4f8;
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-shadow: 0 0 20px rgba(56, 182, 255, 0.5);
+    letter-spacing: 1px;
+}
+
+.interstellar-home p {
+    color: #a8c5d1;
+    font-size: 1.3rem;
+    line-height: 1.8;
+    margin-bottom: 3rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.cosmic-button {
+    display: inline-block;
+    padding: 1rem 3rem;
+    background: linear-gradient(135deg, #1e5a8e 0%, #38b6ff 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: 0 8px 25px rgba(56, 182, 255, 0.3);
+    transition: all 0.3s ease;
+    margin: 0.5rem;
+}
+
+    .cosmic-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(56, 182, 255, 0.5);
+        color: white;
+    }
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 4rem;
+}
+
+.feature-card {
+    background: rgba(26, 29, 53, 0.6);
+    border: 1px solid rgba(56, 182, 255, 0.3);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+    .feature-card:hover {
+        transform: translateY(-10px);
+        border-color: rgba(56, 182, 255, 0.8);
+        box-shadow: 0 10px 30px rgba(56, 182, 255, 0.3);
+    }
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 10px rgba(56, 182, 255, 0.5));
+}
+
+.feature-card h3 {
+    color: #e8f4f8;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card p {
+    color: #a8c5d1;
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+/* Navbar Styling */
+.navbar {
+    background: rgba(10, 14, 39, 0.95) !important;
+    border-bottom: 1px solid rgba(56, 182, 255, 0.3);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    color: #e8f4f8 !important;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.navbar-nav .nav-link {
+    color: #a8c5d1 !important;
+    font-weight: 500;
+    margin: 0 1rem;
+    transition: color 0.3s ease;
+}
+
+    .navbar-nav .nav-link:hover {
+        color: #38b6ff !important;
+    }
+
+/*Other Pages*/
+body:not(.home-page) .container {
+    background: rgba(10, 14, 39, 0.6);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-top: 2rem;
+}
+
+/* Movies/Actors/ActorMovies Index Pages - Simple Interstellar Theme */
+body:not(.home-page) .container {
+    background: rgba(15, 20, 30, 0.8);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-top: 2rem;
+}
+
+.table {
+    background: #1a1d35;
+    color: #e8f4f8;
+    border: 1px solid rgba(56, 182, 255, 0.3);
+}
+
+    .table thead th {
+        background: #0f1419;
+        color: #38b6ff;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 2px solid #38b6ff;
+        padding: 1rem;
+    }
+
+    .table tbody td {
+        color: #0f1419;
+        padding: 1rem;
+        border-bottom: 1px solid rgba(56, 182, 255, 0.2);
+    }
+
+    .table tbody tr {
+        background: #1a1d35;
+    }
+
+        .table tbody tr:hover {
+            background: rgba(56, 182, 255, 0.15);
+        }
+
+body:not(.home-page) h1 {
+    color: #e8f4f8;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+}
+
+body:not(.home-page) a {
+    color: #38b6ff;
+    text-decoration: none;
+}
+
+    body:not(.home-page) a:hover {
+        color: #5cc8ff;
+        text-decoration: underline;
+    }
+
+.dataTables_wrapper {
+    color: #e8f4f8;
+}
+
+.dataTables_filter input,
+.dataTables_length select {
+    background: #1a1d35;
+    border: 1px solid rgba(56, 182, 255, 0.3);
+    color: #e8f4f8;
+    padding: 0.5rem;
+    border-radius: 4px;
 }

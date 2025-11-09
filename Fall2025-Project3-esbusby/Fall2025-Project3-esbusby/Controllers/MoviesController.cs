@@ -7,16 +7,22 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Fall2025_Project3_esbusby.Data;
 using Fall2025_Project3_esbusby.Models;
+using Azure.AI.OpenAI;
+using OpenAI.Chat;
+using System.ClientModel;
+using VaderSharp2;
 
 namespace Fall2025_Project3_esbusby.Controllers
 {
     public class MoviesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public MoviesController(ApplicationDbContext context)
+        public MoviesController(ApplicationDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         // GET: Movies
@@ -43,6 +49,58 @@ namespace Fall2025_Project3_esbusby.Controllers
                 return NotFound();
             }
 
+            var apiEndpoint = new Uri(_configuration["ai_endpoint"]!);
+            var apiCredential = new ApiKeyCredential(_configuration["api_key"]!);
+            var aiDeployment = _configuration["ai_deployment_name"]!;
+
+            ChatClient client = new AzureOpenAIClient(apiEndpoint, apiCredential).GetChatClient(aiDeployment);
+
+            string[] personas = { "is harsh", "loves romance", "loves comedy", "loves thrillers", "loves fantasy", "appreciates cinematography", "enjoys storytelling" };
+            var messages = new ChatMessage[]
+            {
+                new SystemChatMessage($"You represent a group of 3 film critics who have the following personalities: {string.Join(",", personas)}. When you receive a question, respond as exactly 3 members of the group with each response separated by a '|' character, but don't indicate which member you are. IMPORTANT: You must provide exactly 3 reviews separated by the '|' character."),
+                new UserChatMessage($"How would you rate the movie {movie.Title} released in {movie.YearOfRelease} out of 10 in 150 words or less? Give me exactly 3 reviews separated by '|'.")
+            };
+            ClientResult<ChatCompletion> result = await client.CompleteChatAsync(messages);
+            string responseText = result.Value.Content[0].Text;
+
+            string[] reviews = responseText.Split('|')
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToArray();
+
+            if (reviews.Length < 3)
+            {
+                var tempList = reviews.ToList();
+                while (tempList.Count < 3)
+                {
+                    tempList.Add($"Review of {movie.Title}: A compelling film worth watching.");
+                }
+                reviews = tempList.ToArray();
+            }
+            else if (reviews.Length > 3)
+            {
+                reviews = reviews.Take(3).ToArray();
+            }
+
+            var analyzer = new SentimentIntensityAnalyzer();
+            double sentimentTotal = 0;
+            var reviewsList = new List<(string review, SentimentAnalysisResults sentiment)>();
+
+            for (int i = 0; i < reviews.Length; i++)
+            {
+                string review = reviews[i];
+                SentimentAnalysisResults sentiment = analyzer.PolarityScores(review);
+                sentimentTotal += sentiment.Compound;
+
+                reviewsList.Add((review, sentiment));
+            }
+
+            double sentimentAverage = sentimentTotal / reviews.Length;
+
+            ViewBag.Reviews = reviewsList;
+            ViewBag.AverageSentiment = sentimentAverage;
+
             return View(movie);
         }
 
@@ -53,12 +111,20 @@ namespace Fall2025_Project3_esbusby.Controllers
         }
 
         // POST: Movies/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Title,ImdbLink,Genre,YearOfRelease")] Movie movie, IFormFile? Poster)
         {
+
+            var existingMovie = await _context.Movie
+                .FirstOrDefaultAsync(m => m.Title == movie.Title && m.YearOfRelease == movie.YearOfRelease);
+
+            if (existingMovie != null)
+            {
+                ModelState.AddModelError("Title", "A movie with this title and year already exists.");
+                return View(movie);
+            }
+
             if (ModelState.IsValid)
             {
                 // Handle the poster upload
@@ -94,8 +160,6 @@ namespace Fall2025_Project3_esbusby.Controllers
         }
 
         // POST: Movies/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ImdbLink,Genre,YearOfRelease")] Movie movie, IFormFile? Poster)
@@ -105,14 +169,23 @@ namespace Fall2025_Project3_esbusby.Controllers
                 return NotFound();
             }
 
-            // Remove Poster from ModelState validation since we handle it separately
+            var existingMovie = await _context.Movie
+                .FirstOrDefaultAsync(m => m.Title == movie.Title
+                    && m.YearOfRelease == movie.YearOfRelease
+                    && m.Id != movie.Id);
+
+            if (existingMovie != null)
+            {
+                ModelState.AddModelError("Title", "A movie with this title and year already exists.");
+                return View(movie);
+            }
+
             ModelState.Remove("Poster");
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    // Handle the poster upload
                     if (Poster != null && Poster.Length > 0)
                     {
                         using (var memoryStream = new MemoryStream())
@@ -124,10 +197,10 @@ namespace Fall2025_Project3_esbusby.Controllers
                     else
                     {
                         // Keep existing poster if no new one is uploaded
-                        var existingMovie = await _context.Movie.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id);
-                        if (existingMovie != null)
+                        var movieForPoster = await _context.Movie.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id);
+                        if (movieForPoster != null)
                         {
-                            movie.Poster = existingMovie.Poster;
+                            movie.Poster = movieForPoster.Poster;
                         }
                     }
 
